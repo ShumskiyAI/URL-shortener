@@ -1,25 +1,31 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
-	"strings"
-	"url-shortner/internal/models"
-	"url-shortner/internal/service"
 )
 
-// POST /shorten — принимает {"url": "..."}, возвращает {"short": "abc123"}
-func Shorting(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		log.Println("method not allowed")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
+type service interface {
+	Shorten(ctx context.Context, long string) (string, error)
+	GetLong(ctx context.Context, short string) (string, error)
+	GetShortByLong(ctx context.Context, long string) (string, error)
+}
+
+type handler struct {
+	svc service
+}
+
+func NewHandler(svc service) *handler {
+	return &handler{
+		svc: svc,
 	}
+}
 
-	// w.Header().Set("Content-Type", "apllication/json")
-
+// POST /shorten — принимает {"url": "..."}, возвращает {"short": "abc123"}
+func (h *handler) Shorting(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		URL string `json:"url"`
 	}
@@ -34,7 +40,7 @@ func Shorting(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(body, &input)
 	if err != nil {
-		log.Printf("err unmarshaling: %v\n", err)
+		log.Printf("err unmarshaling: %v", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
@@ -45,10 +51,7 @@ func Shorting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	models.Mu.Lock()
-	defer models.Mu.Unlock()
-
-	shortURL, err := service.MakeShortURL(input.URL)
+	shortURL, err := h.svc.Shorten(r.Context(), input.URL)
 	if err != nil {
 		log.Println("URL is incorrect")
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -58,52 +61,33 @@ func Shorting(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(&shortURL)
 	if err != nil {
-		log.Fatalf("err encode: %v\n", err)
+		log.Printf("err encode: %v", err)
+		return
 	}
 }
 
 // GET /{short} — редиректит (302) на оригинальный URL
-func Redirecting(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		log.Println("method not allowed")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	target := strings.TrimPrefix(r.URL.Path, "/")
-
-	shortURL, err := r.URL.Parse(target)
-	if err != nil {
-		log.Println("URL is incorrect")
-		http.Error(w, "URL is incorrect", http.StatusBadRequest)
-		return
-	}
-	if shortURL.String() == "" {
-		log.Println("shortURL is empty")
+func (h handler) Redirecting(w http.ResponseWriter, r *http.Request) {
+	short := r.PathValue("short")
+	if short == "" {
+		log.Println("short is empty")
 		http.Error(w, "inputed URL is empty", http.StatusBadRequest)
 		return
 	}
 
-	models.Mu.Lock()
-	defer models.Mu.Unlock()
-	fullURL := takeFullURL(shortURL.String())
-	if fullURL == "" {
-		log.Println("fullURL is not found")
+	long, err := h.svc.GetLong(r.Context(), short)
+	if err != nil {
+		// тут какая-то обработка
+		log.Println()
+		http.Error(w, "", 400)
+		return
+	}
+	if long == "" {
+		log.Println("long is not found")
 		http.Error(w, "needed URL is not found", http.StatusNotFound)
 		return
 	}
 
 	// http.StatusFound - 302 статус код
-	http.Redirect(w, r, fullURL, http.StatusFound)
-}
-
-func takeFullURL(shortURL string) string {
-	// models.Mu.Lock()
-	// defer models.Mu.Unlock()
-
-	for key, value := range models.URLs {
-		if value == shortURL {
-			return key
-		}
-	}
-	return ""
+	http.Redirect(w, r, long, http.StatusFound)
 }
