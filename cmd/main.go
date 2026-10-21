@@ -15,22 +15,29 @@ import (
 )
 
 func main() {
-	storage := storage.NewStorage()
-	service := service.NewService(storage)
-	handler := handler.NewHandler(service)
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer pingCancel()
+
+	st, err := storage.NewStorage(pingCtx)
+	if err != nil {
+		log.Printf("failed to connect to Redis: %v", err)
+		return
+	}
+	defer st.Close()
+
+	svc := service.NewService(st)
+	h := handler.NewHandler(svc)
 
 	mux := http.NewServeMux()
 
-	// localhost:8080/shorten/https://youtube.com/lens
-	// curl.exe -X POST http://localhost:8080/shorten/https://youtube.com/lens
-	mux.HandleFunc("POST /shorten", handler.Shorting)
+	mux.HandleFunc("POST /shorten", h.CreateShort)
+	mux.HandleFunc("GET /{short}", h.Redirecting)
 
-	// curl.exe http://localhost:8080/тут должна быть короткая ссылка
-	mux.HandleFunc("GET /{short}", handler.Redirecting)
+	middlewareCheck := handler.RecoverMiddleware(handler.LoggingMiddleware(mux))
 
 	server := http.Server{
 		Addr:         ":8080",
-		Handler:      mux,
+		Handler:      middlewareCheck,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

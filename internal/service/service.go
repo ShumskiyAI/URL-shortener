@@ -2,25 +2,21 @@ package service
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"hash/fnv"
-	"log"
 	"net/url"
 	"strings"
-	"url-shortner/internal/storage"
-
-	"github.com/yihleego/base62"
+	"url-shortner/internal/apperr"
 )
 
 type store interface {
 	Set(ctx context.Context, long, short string) error
 	GetLong(ctx context.Context, short string) (string, error)
 	GetShortByLong(ctx context.Context, long string) (string, error)
+	NextID(ctx context.Context) (int64, error)
 }
 
-type service struct { // потом сделать маленькую и добавить интерфейс в handler
+type service struct {
 	store store
 }
 
@@ -33,76 +29,89 @@ func NewService(store store) *service {
 func (s *service) Shorten(ctx context.Context, long string) (string, error) {
 	err := validateURL(long)
 	if err != nil {
-		return "", fmt.Errorf("%w", err)
+		return "", apperr.ErrInvalidURL
 	}
 
-	short := encodeURL(long)
-
-	_, err = s.GetShortByLong(ctx, long)
-	if !errors.Is(err, storage.ErrNotFound) {
-		return short, nil
+	existing, err := s.store.GetShortByLong(ctx, long)
+	if err == nil {
+		return existing, nil
+	}
+	if !errors.Is(err, apperr.ErrNotFound) {
+		return "", fmt.Errorf("get existing URL: %w", err)
 	}
 
-	if err := s.store.Set(ctx, long, short); err != nil {
-		log.Println("err in storage.Set")
-		return "", fmt.Errorf("error writing URL in DB: %w", err)
+	id, err := s.store.NextID(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	short := encodeBase62(id)
+	err = s.store.Set(ctx, long, short)
+	if err != nil {
+		return "", fmt.Errorf("save URL: %w", err)
 	}
 
 	return short, nil
 }
 
-func validateURL(long string) error {
-	url, err := url.Parse(long)
+func validateURL(rawURL string) error {
+	u, err := url.ParseRequestURI(rawURL)
 	if err != nil {
-		return fmt.Errorf("URL is incorrect: %w", err)
+		return fmt.Errorf("invalid URL: %w", err)
 	}
 
-	if url.Scheme != "http" && url.Scheme != "https" {
-		return fmt.Errorf("url scheme must be http or https, got: %q", url.Scheme)
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("url scheme must be http or https, got: %q", u.Scheme)
 	}
 
-	if url.Host == "" {
-		return errors.New("url host is empty")
+	if u.Host == "" {
+		return errors.New("URL host is empty")
 	}
 
-	if !strings.Contains(url.Host, ".") {
+	if !strings.Contains(u.Host, ".") {
 		return errors.New(`URL doesn't contain "."`)
 	}
+	// if strings.ContainsAny(url.Host, "\t \n") {
+	// 	return errors.New("url host contains whitespace")
+	// }
 
-	if strings.ContainsAny(url.Host, "\t \n") {
-		return errors.New("url host contains whitespace")
-	}
 	return nil
 }
 
-func encodeURL(long string) string {
-	h := fnv.New64a()
-	h.Write([]byte(long))
+// внутри собственный encoding Base62
+func encodeBase62(id int64) string {
+	if id == 0 {
+		return "0"
+	}
 
-	sum := h.Sum64()
+	const alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-	var b [8]byte
-	binary.BigEndian.PutUint64(b[:], sum)
+	var buf [11]byte
+	i := len(buf)
 
-	encoded := base62.StdEncoding.EncodeToString(b[:]) // 11 символов
-	return encoded[:8]                                 // или [:8], или [:10]
+	for id > 0 {
+		i--
+		buf[i] = alphabet[id%62]
+		id /= 62
+	}
+
+	return string(buf[i:])
 }
 
-func (s *service) GetLong(ctx context.Context, short string) (string, error) {
+func (s *service) GetLongURL(ctx context.Context, short string) (string, error) {
 	long, err := s.store.GetLong(ctx, short)
 	if err != nil {
-		log.Println("")
-		return "", fmt.Errorf("%w", err) // тут нормально обработать
+		return "", fmt.Errorf("get URL from DB: %w", err)
 	}
 
 	return long, nil
 }
 
-func (s *service) GetShortByLong(ctx context.Context, long string) (string, error) {
+// чтобы не пересоздавать один и тот же url несколько раз, а возвращать тот же
+func (s *service) GetShortURL(ctx context.Context, long string) (string, error) {
 	short, err := s.store.GetShortByLong(ctx, long)
 	if err != nil {
-		log.Println("")
-		return "", fmt.Errorf("%w", err) // тут нормально обработать
+		return "", fmt.Errorf("get URL from DB: %w", err)
 	}
 
 	return short, nil
