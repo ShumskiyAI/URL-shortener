@@ -19,7 +19,7 @@ func NewStorage(ctx context.Context) (*storage, error) {
 		Password: "", // нет пароля
 		DB:       0,
 	})
-	if err := rdb.Ping(ctx); err != nil {
+	if err := rdb.Ping(ctx).Err(); err != nil {
 		return nil, fmt.Errorf("redis ping: %w", err)
 	}
 	return &storage{

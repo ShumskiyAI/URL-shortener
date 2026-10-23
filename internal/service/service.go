@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"url-shortner/internal/apperr"
+
+	"github.com/yihleego/base62"
 )
 
 type store interface {
@@ -78,24 +81,16 @@ func validateURL(rawURL string) error {
 	return nil
 }
 
-// внутри собственный encoding Base62
 func encodeBase62(id int64) string {
 	if id == 0 {
 		return "0"
 	}
 
-	const alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	idStr := strconv.Itoa(int(id))
 
-	var buf [11]byte
-	i := len(buf)
+	short := base62.StdEncoding.EncodeToString([]byte(idStr))
 
-	for id > 0 {
-		i--
-		buf[i] = alphabet[id%62]
-		id /= 62
-	}
-
-	return string(buf[i:])
+	return short
 }
 
 func (s *service) GetLongURL(ctx context.Context, short string) (string, error) {
