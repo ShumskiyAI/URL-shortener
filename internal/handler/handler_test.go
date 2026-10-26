@@ -182,3 +182,38 @@ func TestRedirecting(t *testing.T) {
 		})
 	}
 }
+
+func TestRecoverMiddleware(t *testing.T) {
+	panicky := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		panic("boom")
+	})
+
+	wrapped := RecoverMiddleware(panicky)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rec.Code)
+	}
+}
+
+func TestLoggingMiddleware_CallsNext(t *testing.T) {
+	called := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := LoggingMiddleware(next)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rec := httptest.NewRecorder()
+	wrapped.ServeHTTP(rec, req)
+
+	if !called {
+		t.Error("next handler was not called")
+	}
+}
