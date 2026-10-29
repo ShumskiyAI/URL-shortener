@@ -20,10 +20,11 @@ func main() {
 
 	st, err := storage.NewStorage(pingCtx)
 	if err != nil {
-		log.Printf("failed to connect to Redis: %v", err)
-		return
+		log.Fatalf("failed to connect to Redis: %v", err)
 	}
 	defer st.Close()
+
+	log.Println("connected to Redis")
 
 	svc := service.NewService(st)
 	h := handler.NewHandler(svc)

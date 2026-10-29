@@ -1,0 +1,25 @@
+# OS
+.DS_Store
+
+# Исполняемые файлы и библиотеки
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Тестовые бинарники и профили покрытия
+*.test
+*.out
+coverage.*
+*.coverprofile
+
+# Environment
+.env
+.env.local
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp

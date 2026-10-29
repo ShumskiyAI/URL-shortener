@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"url-shortner/internal/apperr"
 
 	"github.com/redis/go-redis/v9"
@@ -14,14 +15,20 @@ type storage struct {
 }
 
 func NewStorage(ctx context.Context) (*storage, error) {
+	addr := os.Getenv("REDIS_ADDR")
+	if addr == "" {
+		addr = "localhost:6379" // дефолт для локального запуска
+	}
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     addr,
 		Password: "", // нет пароля
 		DB:       0,
 	})
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return nil, fmt.Errorf("redis ping: %w", err)
 	}
+
 	return &storage{
 		rdb: rdb,
 	}, nil
