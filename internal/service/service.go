@@ -101,13 +101,3 @@ func (s *service) GetLongURL(ctx context.Context, short string) (string, error) 
 
 	return long, nil
 }
-
-// чтобы не пересоздавать один и тот же url несколько раз, а возвращать тот же
-func (s *service) GetShortURL(ctx context.Context, long string) (string, error) {
-	short, err := s.store.GetShortByLong(ctx, long)
-	if err != nil {
-		return "", fmt.Errorf("get URL from DB: %w", err)
-	}
-
-	return short, nil
-}

@@ -31,6 +31,10 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	fs := http.FileServer(http.Dir("./web"))
+	mux.Handle("GET /static/", http.StripPrefix("/static/", fs))
+
+	mux.HandleFunc("GET /", h.Index)
 	mux.HandleFunc("POST /shorten", h.CreateShort)
 	mux.HandleFunc("GET /{short}", h.Redirecting)
 

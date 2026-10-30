@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL-shortener</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js" defer></script>
+</head>
+<body>
+    <main class="page">
+        <div class="main-form">
+            <h1>URL-shortener</h1>
+            <p class="subtitle">Помогите пользователям быстро найти вашу страницу в интернете.</p>
+
+            <form id="shorten-form">
+                <input type="url" name="url" id="url-input" placeholder="Введите ссылку, которую нужно сократить" required >
+                <button type="submit">Сократить</button>
+            </form>
+
+            <p class="result">тут ошибка или <span>ссылка</span></p>
+        </div>
+    </main>
+</body>
+</html>

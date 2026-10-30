@@ -92,3 +92,12 @@ func (h *handler) Redirecting(w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, long, http.StatusFound)
 }
+
+func (h *handler) Index(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		log.Println(`URL path is not "/"`)
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeFile(w, r, "web/index.html")
+}

@@ -1,25 +1,34 @@
-# OS
-.DS_Store
-
-# Исполняемые файлы и библиотеки
+# Бинарники
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+/url-shortner
+/url-shortner.exe
 
-# Тестовые бинарники и профили покрытия
+# Тестовые файлы
 *.test
 *.out
-coverage.*
-*.coverprofile
 
-# Environment
+# Go
+vendor/
+
+# Окружение
 .env
 .env.local
-.env.*
+
+# Docker / Redis данные
+redis-data/
+*.rdb
+*.aof
 
 # IDE
 .idea/
 .vscode/
 *.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
