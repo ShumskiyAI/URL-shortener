@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 	"url-shortner/internal/handler"
-	"url-shortner/internal/service"
 	"url-shortner/internal/storage"
+	"url-shortner/internal/usecase"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 
 	log.Println("connected to Redis")
 
-	svc := service.NewService(st)
+	svc := usecase.NewService(st)
 	h := handler.NewHandler(svc)
 
 	mux := http.NewServeMux()

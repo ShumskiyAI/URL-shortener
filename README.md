@@ -30,8 +30,8 @@ internal/
 handler/ - HTTP-слой: парсинг запросов, формирование ответов
 handler.go
 middleware.go - логирование, recovery
-service/ - бизнес-логика: валидация, дедупликация, генерация short
-service.go
+usecase/ - бизнес-логика: валидация, дедупликация, генерация short
+usecase.go
 storage/ - слой хранения: Redis
 storage.go
 apperr/ - общие ошибки приложения
@@ -44,12 +44,12 @@ Makefile
 text
 
 **Зависимости направлены сверху вниз:**
-handler → service → storage
+handler → usecase → storage
 
 text
 
 - `handler` **не знает** про `storage`.
-- `service` **не знает** про конкретное хранилище - только про интерфейс `store`.
+- `usecase` **не знает** про конкретное хранилище - только про интерфейс `store`.
 - `main.go` - единственное место, где создаются все зависимости и связываются вместе (composition root).
 
 ## API
@@ -183,8 +183,8 @@ go test -race ./...
 
 ## Покрыто тестами:
 
-- service - с моками store (табличные тесты).
-- handler - с моками service (через httptest).
+- usecase - с моками store (табличные тесты).
+- handler - с моками usecase (через httptest).
 - storage - с miniredis (in-memory Redis).
 - middleware - проверка вызова next и обработки panic.
 
@@ -192,7 +192,7 @@ go test -race ./...
 
 Зафиксированы осознанно, не являются багами:
 
-- apperr смешивает ошибки разных слоёв (ErrNotFound - состояние storage, ErrInvalidURL - домен service). Плюс: единое место, handler не импортирует service. Минус: storage зависит от apperr. Пересмотреть, если storage будет переиспользоваться или apperr разрастётся.
+- apperr смешивает ошибки разных слоёв (ErrNotFound - состояние storage, ErrInvalidURL - домен usecase). Плюс: единое место, handler не импортирует usecase. Минус: storage зависит от apperr. Пересмотреть, если storage будет переиспользоваться или apperr разрастётся.
 - encodeBase62 кодирует строковое представление ID, а не число. Ссылки уникальны и работают, но длина short может скакать (например, id=10 → 3 символа, id=100 → 7 символов). Осознанно оставлено для простоты.
 - TTL не задан - ссылки живут вечно. Осознанно (иначе дедупликация ломается после истечения). Пересмотреть, если понадобится автоочистка.
 - INCR + Set не атомарны вместе - если Set упадёт после INCR, ID потрачен впустую (пропуск в нумерации).
