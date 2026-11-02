@@ -66,7 +66,7 @@ func TestShorten(t *testing.T) {
 				SetFunc:    func(ctx context.Context, long, short string) error { return nil },
 			},
 			wantErr:   nil,
-			wantShort: "n",
+			wantShort: "1",
 		},
 		{
 			name:     "existing URL returns same short",
@@ -257,10 +257,10 @@ func TestEncodeBase62(t *testing.T) {
 		want string
 	}{
 		{0, "0"},
-		{1, "n"},
-		{61, "3bl"},
-		{62, "3bm"},
-		{12345, "3idarWH"},
+		{1, "1"},
+		{61, "Z"},
+		{62, "10"},
+		{12345, "3d7"},
 	}
 
 	for _, tc := range tests {
